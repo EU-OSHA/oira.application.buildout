@@ -1,4 +1,4 @@
-vcl 4.1;
+vcl 4.0;
 # Based on: https://github.com/mattiasgeniar/varnish-6.0-configuration-templates/blob/master/default.vcl
 
 import std;
@@ -6,8 +6,8 @@ import directors;
 
 backend server1 { # Define one backend
   .host = "127.0.0.1";    # IP or Hostname of backend
-  .port = "5000";         # Port Apache or whatever is listening
-  .max_connections = 300; # That's it
+  .port = "13280";        # XXX Adjust this! Port Apache or whatever is listening
+  .max_connections = 300;
 
   .probe = {
     #.url = "/"; # short easy way (GET /)
@@ -42,8 +42,6 @@ sub vcl_init {
 
   new vdir = directors.round_robin();
   vdir.add_backend(server1);
-  # vdir.add_backend(server...);
-  # vdir.add_backend(servern);
 }
 
 sub vcl_recv {
@@ -96,6 +94,11 @@ sub vcl_recv {
     return (pass);
   }
 
+  # Never cache the user menue, it must pick up the language cookie.
+  if (req.url ~ "user-menu.html") {
+    return (pass);
+  }
+
   # Some generic URL manipulation, useful for all templates that follow
   # First remove the Google Analytics added parameters, useless for our backend
   if (req.url ~ "(\?|&)(utm_source|utm_medium|utm_campaign|utm_content|gclid|cx|ie|cof|siteurl)=") {
@@ -115,14 +118,17 @@ sub vcl_recv {
     set req.url = regsub(req.url, "\?$", "");
   }
 
+  if (req.url ~ "\?_=") {
+    set req.url = regsub(req.url, "\?_=.*", "");
+  }
   # Some generic cookie manipulation, useful for all templates that follow
   # Remove the "has_js" cookie
   set req.http.Cookie = regsuball(req.http.Cookie, "has_js=[^;]+(; )?", "");
 
   # Remove any Google Analytics based cookies
   set req.http.Cookie = regsuball(req.http.Cookie, "__utm.=[^;]+(; )?", "");
-  set req.http.Cookie = regsuball(req.http.Cookie, "_ga=[^;]+(; )?", "");
   set req.http.Cookie = regsuball(req.http.Cookie, "_gat=[^;]+(; )?", "");
+  //set req.http.Cookie = regsuball(req.http.Cookie, "; _ga=[^;]+(; )?", "; ");
   set req.http.Cookie = regsuball(req.http.Cookie, "utmctr=[^;]+(; )?", "");
   set req.http.Cookie = regsuball(req.http.Cookie, "utmcmd.=[^;]+(; )?", "");
   set req.http.Cookie = regsuball(req.http.Cookie, "utmccn.=[^;]+(; )?", "");
@@ -136,6 +142,14 @@ sub vcl_recv {
   # Remove the AddThis cookies
   set req.http.Cookie = regsuball(req.http.Cookie, "__atuv.=[^;]+(; )?", "");
 
+  # _pk cookies
+  set req.http.Cookie = regsuball(req.http.Cookie, "_pk_id.2.ef1b=[^;]+(; )?", "");
+  set req.http.Cookie = regsuball(req.http.Cookie, "_pk_ses.2.ef1b=[^;]+(; )?", "");
+
+  # Remove the hotjar cookies
+  set req.http.Cookie = regsuball(req.http.Cookie, "_hj(.*)?=[^;]+(; )?", "");
+
+
   # Remove a ";" prefix in the cookie if present
   set req.http.Cookie = regsuball(req.http.Cookie, "^;\s*", "");
 
@@ -144,31 +158,39 @@ sub vcl_recv {
     unset req.http.cookie;
   }
 
+  # Forcefully remove remaining auth cookies for resources that don't need auth.
+  if (req.url ~ "euphorie\.resources/oira/(script|style|favicon|i18n|depts\.html).*") {
+    set req.http.Cookie = regsuball(req.http.Cookie, "__ac=[^;]+(; )?", "");
+    set req.http.Cookie = regsuball(req.http.Cookie, "I18N_LANGUAGE=[^;]+(; )?", "");
+    set req.http.Cookie = regsuball(req.http.Cookie, "^;\s*", "");
+    if (req.http.cookie ~ "^\s*$") {
+      unset req.http.cookie;
+    }
+    return (hash);
+  }
+
   if (req.http.Cache-Control ~ "(?i)no-cache") {
     if (client.ip ~ purge) {
       # Ignore requests via proxy caches and badly behaved crawlers
       # like msnbot that send no-cache with every request.
       if (! (req.http.Via || req.http.User-Agent ~ "(?i)bot" || req.http.X-Purge)) {
-        #set req.hash_always_miss = true; # Doesn't seems to refresh the object in the cache
         return(purge); # Couple this with restart in vcl_purge and X-Purge header to avoid loops
       }
     }
   }
 
-  # Large static files are delivered directly to the end-user without
-  # waiting for Varnish to fully read the file first.
-  # Varnish 4 fully supports Streaming, so set do_stream in vcl_backend_response()
-  if (req.url ~ "^[^?]*\.(7z|avi|bz2|flac|flv|gz|mka|mkv|mov|mp3|mp4|mpeg|mpg|ogg|ogm|opus|rar|tar|tgz|tbz|txz|wav|webm|xz|zip)(\?.*)?$") {
-    unset req.http.Cookie;
-    return (hash);
-  }
 
+  # Forcefully remove auth cookie for static files
   # Remove all cookies for static files
   # A valid discussion could be held on this line: do you really need to cache static files that don't cause load? Only if you have memory left.
   # Sure, there's disk I/O, but chances are your OS will already have these files in their buffers (thus memory).
   # Before you blindly enable this, have a read here: https://ma.ttias.be/stop-caching-static-files/
   if (req.url ~ "^[^?]*\.(7z|avi|bmp|bz2|css|csv|doc|docx|eot|flac|flv|gif|gz|ico|jpeg|jpg|js|less|mka|mkv|mov|mp3|mp4|mpeg|mpg|odt|otf|ogg|ogm|opus|pdf|png|ppt|pptx|rar|rtf|svg|svgz|swf|tar|tbz|tgz|ttf|txt|txz|wav|webm|webp|woff|woff2|xls|xlsx|xml|xz|zip)(\?.*)?$") {
-    unset req.http.Cookie;
+    set req.http.Cookie = regsuball(req.http.Cookie, "I18N_LANGUAGE=[^;]+(; )?", "");
+    set req.http.Cookie = regsuball(req.http.Cookie, "__ac=[^;]+(; )?", "");
+    if (req.http.cookie ~ "^\s*$") {
+      unset req.http.cookie;
+    }
     return (hash);
   }
 
@@ -294,6 +316,16 @@ sub vcl_miss {
 sub vcl_backend_response {
   # Called after the response headers has been successfully retrieved from the backend.
 
+  if (bereq.url ~ "\.(css|js)\?t=.*$") {
+      set beresp.ttl = 1209600s;
+      set beresp.http.cache-control = "max-age=1209600;s-maxage=1209600";
+      set beresp.http.max-age = "1209600";
+      set beresp.http.s-maxage = "1209600";
+#      set beresp.http.expires = "1209600";
+      unset beresp.http.set-cookie;
+      return (deliver);
+  }
+
   # Pause ESI request and remove Surrogate-Control header
   if (beresp.http.Surrogate-Control ~ "ESI/1.0") {
     unset beresp.http.Surrogate-Control;
@@ -303,18 +335,40 @@ sub vcl_backend_response {
   # Enable cache for all static files
   # The same argument as the static caches from above: monitor your cache size, if you get data nuked out of it, consider giving up the static file cache.
   # Before you blindly enable this, have a read here: https://ma.ttias.be/stop-caching-static-files/
-  if (bereq.url ~ "^[^?]*\.(7z|avi|bmp|bz2|css|csv|doc|docx|eot|flac|flv|gif|gz|ico|jpeg|jpg|js|less|mka|mkv|mov|mp3|mp4|mpeg|mpg|odt|otf|ogg|ogm|opus|pdf|png|ppt|pptx|rar|rtf|svg|svgz|swf|tar|tbz|tgz|ttf|txt|txz|wav|webm|webp|woff|woff2|xls|xlsx|xml|xz|zip)(\?.*)?$") {
-    unset beresp.http.set-cookie;
-  }
-
-  # Large static files are delivered directly to the end-user without
-  # waiting for Varnish to fully read the file first.
-  # Varnish 4 fully supports Streaming, so use streaming here to avoid locking.
-  if (bereq.url ~ "^[^?]*\.(7z|avi|bz2|flac|flv|gz|mka|mkv|mov|mp3|mp4|mpeg|mpg|ogg|ogm|opus|rar|tar|tgz|tbz|txz|wav|webm|xz|zip)(\?.*)?$") {
+  if (bereq.url ~ "^[^?]*\.(7z|avi|bmp|bz2|csv|doc|docx|eot|flac|flv|gif|gz|ico|jpeg|jpg|less|mka|mkv|mov|mp3|mp4|mpeg|mpg|odt|otf|ogg|ogm|opus|pdf|png|ppt|pptx|rar|rtf|svg|svgz|swf|tar|tbz|tgz|ttf|txt|txz|wav|webm|webp|xls|xlsx|xml|xz|zip)(\?.*)?$") {
     unset beresp.http.set-cookie;
     set beresp.do_stream = true;  # Check memory usage it'll grow in fetch_chunksize blocks (128k by default) if the backend doesn't send a Content-Length header, so only enable it for big objects
   }
 
+
+  if (bereq.url ~ "\.(css|js|woff|woff2)$") {
+      set beresp.ttl = 1209600s;
+      set beresp.http.cache-control = "max-age=1209600;s-maxage=1209600";
+      set beresp.http.max-age = "1209600";
+      set beresp.http.s-maxage = "1209600";
+#      set beresp.http.expires = "1209600";
+      unset beresp.http.set-cookie;
+      return (deliver);
+  }
+
+  if (bereq.url ~ "euphorie\.resources.*$") {
+      set beresp.ttl = 1209600s;
+      set beresp.http.cache-control = "max-age=1209600;s-maxage=1209600";
+      set beresp.http.max-age = "1209600";
+      set beresp.http.s-maxage = "1209600";
+#      set beresp.http.expires = "1209600";
+      return (deliver);
+  }
+
+  if (bereq.url ~ "euphorie\.resources.*\?_=.*$") {
+      set beresp.ttl = 1209600s;
+      set beresp.http.cache-control = "max-age=1209600;s-maxage=1209600";
+      set beresp.http.max-age = "1209600";
+      set beresp.http.s-maxage = "1209600";
+#      set beresp.http.expires = "1209600";
+      return (deliver);
+
+  }
   # Sometimes, a 301 or 302 redirect formed via Apache's mod_rewrite can mess with the HTTP port that is being passed along.
   # This often happens with simple rewrite rules in a scenario where Varnish runs on :80 and Apache on :8080 on the same box.
   # A redirect can then often redirect the end-user to a URL on :8080, where it should be :80.
@@ -326,7 +380,7 @@ sub vcl_backend_response {
   }
 
   # Set 2min cache if unset for static files
-  if (beresp.ttl <= 0s || beresp.http.Set-Cookie || beresp.http.Vary == "*") {
+ if (beresp.ttl <= 0s || beresp.http.Set-Cookie || beresp.http.Vary == "*") {
     set beresp.ttl = 120s; # Important, you shouldn't rely on this, SET YOUR HEADERS in the backend
     set beresp.uncacheable = true;
     return (deliver);
@@ -354,6 +408,7 @@ sub vcl_deliver {
   } else {
     set resp.http.X-Cache = "MISS";
   }
+  set resp.http.X-Cookie-Debug = "Request cookie: " + req.http.Cookie;
 
   # Please note that obj.hits behaviour changed in 4.0, now it counts per objecthead, not per object
   # and obj.hits may not be reset in some cases where bans are in use. See bug 1492 for details.
