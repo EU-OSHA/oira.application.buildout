@@ -2,14 +2,14 @@
 
 all: .installed.cfg
 
-bin/pip:
-	python3 -m venv . || virtualenv -p python3 --no-site-packages --no-setuptools . || virtualenv -p python3 --no-setuptools .
+py3/bin/pip:
+	python3 -m venv py3 || virtualenv -p python3 --no-site-packages --no-setuptools py3 || virtualenv -p python3 --no-setuptools py3
 
-bin/buildout: bin/pip requirements.txt
-	./bin/pip install -IUr requirements.txt
+py3/bin/buildout: py3/bin/pip requirements.txt
+	./py3/bin/pip install -IUr requirements.txt
 
-.installed.cfg: bin/buildout *.cfg
-	./bin/buildout
+.installed.cfg: py3/bin/buildout *.cfg
+	./py3/bin/buildout
 
 upgrade:
 	./bin/upgrade plone_upgrade -S &&  ./bin/upgrade install -Sp
