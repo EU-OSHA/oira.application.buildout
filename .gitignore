@@ -14,6 +14,7 @@
 /var
 /src
 /src/daimler.oira.egg-info
+/py3
 *.mo
 *.pyc
 *~
