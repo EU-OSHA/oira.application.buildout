@@ -16,3 +16,7 @@ upgrade:
 
 restart:
 	./bin/supervisord || ( ./bin/supervisorctl reread && ./bin/supervisorctl restart all)
+
+.PHONY: read_registry
+read_registry: .installed.cfg
+	./bin/instance run scripts/read_registry.py etc/registry/*.xml
