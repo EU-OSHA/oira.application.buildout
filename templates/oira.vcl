@@ -150,6 +150,7 @@ sub vcl_deliver {
   unset resp.http.Via;
   unset resp.http.Link;
   unset resp.http.X-Generator;
+  unset resp.http.X-Powered-By;
 }
 
 # vim: set sw=4 et:
