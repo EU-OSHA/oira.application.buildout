@@ -136,13 +136,7 @@ sub vcl_deliver {
     set resp.http.X-Cache = "MISS";
   }
   set resp.http.X-Hits = obj.hits;
-  set resp.http.X-Cookie-Debug = "Request cookie: " + req.http.Cookie;
 
-  if (req.url !~ "euphorie\.resources/oira/(script|style|favicon|i18n|depts\.html)") {
-      set resp.http.X-Resource-Debug = "NO: Not in resource url";
-  } else {
-      set resp.http.X-Resource-Debug = "YES: In resource url";
-  }
   # Remove some headers: Apache version & OS
   unset resp.http.Server;
   unset resp.http.X-Drupal-Cache;
