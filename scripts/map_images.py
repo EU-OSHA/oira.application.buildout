@@ -1,17 +1,15 @@
-from lxml import etree
-from pathlib import posixpath
-from plone.namedfile.file import NamedBlobImage
-from tempfile import TemporaryDirectory
-from urllib.parse import unquote
-from urllib.parse import urlparse
-from zope.component.hooks import setSite
-
 import logging
-import requests
 import sys
-import transaction
 import urllib.request
+from pathlib import posixpath
+from tempfile import TemporaryDirectory
+from urllib.parse import unquote, urlparse
 
+import requests
+import transaction
+from lxml import etree
+from plone.namedfile.file import NamedBlobImage
+from zope.component.hooks import setSite
 
 log = logging.getLogger(__name__)
 
