@@ -1,6 +1,5 @@
 /.installed.cfg
 /.mr.developer.cfg
-/.vscode
 /bin
 /build
 /buildout.cfg
@@ -17,7 +16,6 @@
 /src
 /src/daimler.oira.egg-info
 /var
-/var-*
 *.mo
 *.pyc
 *~
