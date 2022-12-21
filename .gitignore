@@ -1,8 +1,8 @@
 /.installed.cfg
 /.mr.developer.cfg
-/buildout.cfg
 /bin
 /build
+/buildout.cfg
 /develop-eggs
 /dist
 /eggs
@@ -11,10 +11,11 @@
 /lib
 /local
 /parts
-/var
+/py3
+/share
 /src
 /src/daimler.oira.egg-info
-/py3
+/var
 *.mo
 *.pyc
 *~
@@ -26,6 +27,7 @@ scripts/lib
 scripts/bin
 scripts/include
 secrets.robot
+lib64
 log.html
 output.xml
 report.html
