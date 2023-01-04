@@ -1,1 +1,1 @@
--r https://dist.plone.org/release/5.2.10/requirements.txt
+-r https://raw.githubusercontent.com/euphorie/Euphorie/14.2.1/requirements.txt
