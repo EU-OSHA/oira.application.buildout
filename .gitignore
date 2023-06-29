@@ -3,6 +3,7 @@
 /bin
 /build
 /buildout.cfg
+/custom.cfg
 /develop-eggs
 /dist
 /eggs
