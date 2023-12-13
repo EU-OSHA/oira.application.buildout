@@ -1,1 +1,1 @@
--r https://raw.githubusercontent.com/euphorie/Euphorie/15.0.8/requirements.txt
+-r https://raw.githubusercontent.com/euphorie/Euphorie/15.1.1/requirements.txt
