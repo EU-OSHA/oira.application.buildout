@@ -12,7 +12,7 @@ from zope.component.hooks import setSite
 
 log = logging.getLogger(__name__)
 
-BASE_URL = "https://oiraproject.eu"
+BASE_URL = "https://oira.osha.europa.eu"
 
 
 if len(sys.argv) > 3:
@@ -37,7 +37,7 @@ def get_filename():
 
 
 for page_num in range(255):
-    url = "{}/en/oira-tools?search_api_fulltext=&sort_by=title" "&page={}".format(
+    url = "{}/en/oira-tools?search_api_fulltext=&sort_by=title&page=%2C{}".format(
         BASE_URL, page_num
     )
     page = requests.get(url).text
@@ -47,7 +47,7 @@ for page_num in range(255):
         log.warning("Stopping at page {} (no more tools found)".format(page_num))
         break
     for elem in tool_elements:
-        link = elem.find(".//div[@class='tool-link']/a")
+        link = elem.find('.//div[@class="button-risk"]/a')
         if link is not None:
             path = "/".join(
                 urlparse(unquote(link.attrib["href"]))
@@ -67,7 +67,7 @@ for page_num in range(255):
             log.warning("Already has image: {}".format(path))
             continue
 
-        img = elem.find(".//div[@class='views-field views-field-field-image']//img")
+        img = elem.find(".//div[@class='content-view-oira-tools-view']/img")
         if img is None:
             log.warning("No image for {}".format(path))
             continue
